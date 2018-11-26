@@ -52,7 +52,6 @@ class ProcesamientoDeDatos():
 
 
 
-
         # FIFO donde se guardan los datos leidos desde el Serial.
         self.fifo_queue = queue.Queue(100)
 
@@ -62,21 +61,53 @@ class ProcesamientoDeDatos():
         self.hiloTkinter = threading.Thread(target=self.tkinterGui,name='tkinterGui')
         self.hiloLeerSerial = threading.Thread(target=self.leerSerial, name='leerSerial')
         self.hiloParser = threading.Thread(target=self.parser, name='plot')
-        #self.hiloMatplotlib = threading.Thread(target=self.matplotlibGui,name='matplotlibGui')
+
         self.hiloLeerSerial.start()
         self.hiloParser.start()
         self.hiloTkinter.start()
-        #self.hiloMatplotlib.start()
 
 
+        geoplotlib.add_layer(AnimatedLayer())
+        geoplotlib.show()
 
+    def ball_update(self):
 
+        for x in range(0, 4):
+            try:
+                self.text_value_vector.pop().remove()
+            except:
+                print("error")
 
-        #geoplotlib.add_layer(AnimatedLayer())
-        #geoplotlib.show()
+        self.text_value_vector.append(self.sal.text(0.1, 0.6, 30, fontsize=10))
+        self.text_value_vector.append(self.sal.text(0.7, 0.6, 40, fontsize=10))
+        self.text_value_vector.append(self.sal.text(0.1, 0.2, 1100 + self.counter, fontsize=10))
+        self.text_value_vector.append(self.sal.text(0.7, 0.2, 0, fontsize=10))
+        self.counter = self.counter + 100
+        print(self.counter)
+        self.objetivo_az_rango[0] = self.azimuth
+        self.objetivo_az_rango[1] = self.counter % 100000  # self.rango
+        # self.objetivo_az_rango[1] = self.rango_contador
+        self.objetivo_el_rango[0] = self.elevacion
+        self.objetivo_el_rango[1] = self.counter % 100000  # self.rango
 
+        self.scatter_objeto_az.set_offsets(self.objetivo_az_rango)
+        self.scatter_objeto_el.set_offsets(self.objetivo_el_rango)
+        # self.fig.canvas.draw()
+        self.v.set(str(self.counter))
 
+        self.az.draw_artist(self.scatter_objeto_az)
+        self.el.draw_artist(self.scatter_objeto_el)
 
+        self.fig.canvas.blit(self.fig.bbox)
+        self.fig.canvas.restore_region(self.background)
+
+        print("--- %s seconds ---" % (time.time() - self.start_time))
+
+    def move_active(self):
+        self.start_time = time.time()
+        if self.active:
+            self.ball_update()
+            self.root.after(0, self.move_active)  # changed from 10ms to 30ms
 
 
 
@@ -127,6 +158,7 @@ class ProcesamientoDeDatos():
         self.sal.axis('off')
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)  # A tk.DrawingArea.
+
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
@@ -134,16 +166,20 @@ class ProcesamientoDeDatos():
         self.button = tk.Button(master=self.root, text="Quit", command=self._quit)
         self.button.pack(side=tk.BOTTOM)
 
-        #self.background = self.canvas.copy_from_bbox(self.az.bbox)
-
-        #self.fig.canvas.blit(self.fig.bbox)
-
-        #self.fig.canvas.restore_region(self.background)
-
-        #self.root.after(0, self.matplotlibGui())
-        #tk.mainloop()
+        self.v = tk.StringVar()
+        self.label = tk.Label(master=self.root, text="Graph Page!", textvariable=self.v)
+        self.label.pack(side=tk.BOTTOM)
 
 
+
+
+
+
+        self.background = self.canvas.copy_from_bbox(self.fig.bbox)
+        self.active = True
+        self.move_active()
+        self.ball_update()
+        tk.mainloop()
 
     def on_key_press(self, event):
         print("you pressed {}".format(event.key))
@@ -155,37 +191,6 @@ class ProcesamientoDeDatos():
         self.root.quit()  # stops mainloop
         self.root.destroy()  # this is necessary on Windows to prevent
         # Fatal Python Error: PyEval_RestoreThread: NULL tstate
-
-    def matplotlibGui(self):
-        ""
-
-            # actualizacion d  el dibujo
-
-        while True:
-            time.sleep(1)
-
-            for x in range(0, 4):
-                try:
-                    self.text_value_vector.pop().remove()
-                except:
-                    print("error")
-            print("asdasd")
-            self.text_value_vector.append(self.sal.text(0.1, 0.6, 30, fontsize=10))
-            self.text_value_vector.append(self.sal.text(0.7, 0.6, 40, fontsize=10))
-            self.text_value_vector.append(self.sal.text(0.1, 0.2, 10000, fontsize=10))
-            self.text_value_vector.append(self.sal.text(0.7, 0.2, 0, fontsize=10))
-
-            self.objetivo_az_rango[0] = self.azimuth
-            self.objetivo_az_rango[1] = self.rango
-            # self.objetivo_az_rango[1] = self.rango_contador
-            self.objetivo_el_rango[0] = self.elevacion
-            self.objetivo_el_rango[1] = self.rango
-
-            print(self.objetivo_az_rango)
-            self.scatter_objeto_az.set_offsets(self.objetivo_az_rango)
-            self.scatter_objeto_el.set_offsets(self.objetivo_el_rango)
-
-
 
 
     def parser(self):
