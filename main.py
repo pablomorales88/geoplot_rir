@@ -40,10 +40,15 @@ fin = 1
 
 class ProcesamientoDeDatos():
     def __init__(self):
+
+        self.archivo_loggin = open('loggin_vitro.log', 'w')
+        self.altitud_sim = 0.0
         self.az_el_rang_sim = [0,0,0]
         self.az_sim = 0.0
         self.el_sim = 0.0
         self.rango_sim = 0.0
+        self.latitud_objetivo = 0.0
+        self.longitud_objetivo = 0.0
 
 
 
@@ -65,26 +70,35 @@ class ProcesamientoDeDatos():
 
         # FIFO donde se guardan los datos leidos desde el Serial.
         self.fifo_queue = queue.Queue(100)
-
+        self.loggin_queue = queue.Queue(10)
 
 
         threading.Thread.__init__(self)
         self.hiloTkinter = threading.Thread(target=self.tkinterGui,name='tkinterGui')
         self.hiloLeerSerial = threading.Thread(target=self.leerSerial, name='leerSerial')
         self.hiloParser = threading.Thread(target=self.parser, name='plot')
+        self.hiloLoggin = threading.Thread(target=self.login, name='login')
+
 
         self.hiloLeerSerial.start()
         self.hiloParser.start()
         self.hiloTkinter.start()
+        self.hiloLoggin.start()
 
         self.prueba = AnimatedLayer()
         geoplotlib.add_layer(self.prueba)
         geoplotlib.show()
 
+
+    def login(self):
+        while True:
+            self.archivo_loggin.write(str(self.loggin_queue.get(block=True, timeout=None)))
+
     def ball_update(self):
 
 
         self.counter = self.counter + 100
+        self.altitud_sim = np.sin((self.el_sim * np.pi) / 180) * self.rango_sim
         #print(self.counter)
         self.objetivo_az_rango[0] = (self.az_sim*np.pi)/180#0.785398163#self.azimuth
         self.objetivo_az_rango[1] = self.rango_sim#self.counter % 100000  # self.rango
@@ -105,11 +119,12 @@ class ProcesamientoDeDatos():
 
         #print("--- %s seconds ---" % (time.time() - self.start_time))
         #self.prueba.setLatLong(10,20)
-        self.prueba.azelraToLatLong(self.az_sim,self.el_sim,self.rango_sim)
+        self.latitud_objetivo,self.longitud_objetivo = self.prueba.azelraToLatLong(self.az_sim,self.el_sim,self.rango_sim)
         self.value_rango.set("{0:.2f}".format(self.rango_sim))
         self.value_az.set("{0:.2f}".format(self.az_sim))
         self.value_el.set("{0:.2f}".format(self.el_sim))
-        self.value_altitud.set("{0:.2f}".format(self.az_sim))
+        self.value_altitud.set("{0:.2f}".format(self.altitud_sim)) #Aca tiene que ir el calculo de altitud
+        self.loggin_queue.put(["{0:.2f}".format(self.az_sim),"{0:.2f}".format(self.el_sim),"{0:.2f}".format(self.rango_sim),"{0:.2f}".format(self.altitud_sim), self.latitud_objetivo,self.longitud_objetivo])
 
     def move_active(self):
         self.start_time = time.time()
@@ -394,6 +409,7 @@ class ProcesamientoDeDatos():
                             self.rango_sim = int(self.data_serial[x].replace("'", ''), 16) / 2
                         except:
                             print("Error_rango_sim")
+
                 time.sleep(0.02)
                 # if self.rango_contador <= 20000:
                 #    self.azimuth = float(135 * np.pi) / 180
@@ -472,7 +488,8 @@ class AnimatedLayer(BaseLayer):
         self.frame_counter = 0
         self.latitud_target = 0.0  # +lat_vitro
         self.longitud_target = 0.0  # +long_vitro
-
+        self.latitudes = []
+        self.longitudes = []
 
 
     def invalidate(self, proj):
@@ -482,12 +499,19 @@ class AnimatedLayer(BaseLayer):
         self.vitro_x, self.vitro_y = proj.lonlat_to_screen([-64.2695147], [-31.434847])
 
     def draw(self, proj, mouse_x, mouse_y, ui_manager):
-        self.x, self.y = proj.lonlat_to_screen([self.longitud_target], [self.latitud_target])
+        if len(self.longitudes) >= 50:
+            self.longitudes.pop(0)
+            self.latitudes.pop(0)
+
+        self.latitudes.append(self.latitud_target)
+        self.longitudes.append(self.longitud_target)
+
+        self.x, self.y = proj.lonlat_to_screen([self.longitudes], [self.latitudes])
         self.painter = BatchPainter()
         self.painter.points(self.vitro_x,
                             self.vitro_y)
         self.painter.points(self.x,#[self.frame_counter],
-                            self.y,)#[self.frame_counter],point_size=4, rounded=True)
+                            self.y, point_size=4, rounded=True)#[self.frame_counter],point_size=4, rounded=True)
 
         self.painter.batch_draw()
         self.frame_counter += 1
@@ -502,6 +526,7 @@ class AnimatedLayer(BaseLayer):
         y_lat_point = (y_lat_point / 94.930) / 1000
         self.latitud_target = x_lat_point - 31.434847 #+lat_vitro
         self.longitud_target = y_lat_point - 64.2695147 #+long_vitro
+        return self.latitud_target,self.longitud_target
         #self.x, self.y = proj.lonlat_to_screen(self.data_long, self.data_lat)
 
     def sph2cart(self,az_point, el_point, r_point):
