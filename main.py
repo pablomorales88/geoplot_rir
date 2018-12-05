@@ -43,8 +43,8 @@ class ProcesamientoDeDatos():
 
         #self.archivo_loggin = open('loggin_vitro.log', 'w')
         self.labelLOG=str(time.localtime()[0])+"-"+str(time.localtime()[1])+"-"+str(time.localtime()[2])+"-"+str(time.localtime()[3])+"-"+str(time.localtime()[4])+"-"+str(time.localtime()[5])
-        self.archivo_loggin = open(self.labelLOG+'.log', 'w')
-
+        self.archivo_loggin = open(self.labelLOG+'.log', 'w',newline='\n')
+        self.counter_serial_data = 0
         self.altitud_sim = 0.0
         self.az_el_rang_sim = [0,0,0]
         self.az_sim = 0.0
@@ -52,7 +52,7 @@ class ProcesamientoDeDatos():
         self.rango_sim = 0.0
         self.latitud_objetivo = 0.0
         self.longitud_objetivo = 0.0
-        self.grabar_trayectoria = 0
+        self.grabar_trayectoria = 1
         self.fin = 2
         self.ser = None
         self.open_com = 0
@@ -70,6 +70,7 @@ class ProcesamientoDeDatos():
         self.rango_contador = 0
         self.graficar_ON = 1
         self.graficar_OFF = 0
+        self.activar_parser = 0
         # FIFO donde se guardan los datos leidos desde el Serial.
         self.fifo_queue = queue.Queue(100)
         self.loggin_queue = queue.Queue(10)
@@ -81,12 +82,14 @@ class ProcesamientoDeDatos():
         self.hiloParser = threading.Thread(target=self.parser, name='plot')
         self.hiloLoggin = threading.Thread(target=self.login, name='login')
 
-
-        self.hiloLeerSerial.start()
-        self.hiloParser.start()
         self.hiloTkinter.start()
+        self.hiloLeerSerial.start()
         self.hiloLoggin.start()
 
+        while self.activar_parser != 1:
+            print("esperando que se active el parser")
+
+        self.hiloParser.start()
         self.prueba = AnimatedLayer()
         geoplotlib.add_layer(self.prueba)
         geoplotlib.show()
@@ -96,11 +99,11 @@ class ProcesamientoDeDatos():
         while True:
             if self.grabar_trayectoria == 1:
                 try:
-                    self.archivo_loggin.write(str(self.loggin_queue.get(block=True, timeout=None)))
+                    self.archivo_loggin.writelines(str(self.loggin_queue.get(block=True, timeout=None)).replace(",",";").replace("[",'').replace("]",';\r\n'))
                 except:
                     print("error grabar tray")
             else:
-                time.sleep(1)
+                time.sleep(0.5)
 
     def ball_update(self):
 
@@ -122,24 +125,16 @@ class ProcesamientoDeDatos():
         self.fig.canvas.restore_region(self.background)
 
         #print("--- %s seconds ---" % (time.time() - self.start_time)
-        if self.fin != 2:
 
+        if self.fin != 2:
             self.latitud_objetivo,self.longitud_objetivo = self.prueba.azelraToLatLong(self.az_sim,self.el_sim,self.rango_sim)
 
-        self.value_rango.set("{0:.2f}".format(self.rango_sim))
-        self.value_az.set("{0:.2f}".format(self.az_sim))
-        self.value_el.set("{0:.2f}".format(self.el_sim))
-        self.value_altitud.set("{0:.2f}".format(self.altitud_sim)) #Aca tiene que ir el calculo de altitud
-        if self.grabar_trayectoria == 1:
-            self.loggin_queue.put(["{0:.2f}".format(self.az_sim),"{0:.2f}".format(self.el_sim),"{0:.2f}".format(self.rango_sim),"{0:.2f}".format(self.altitud_sim), self.latitud_objetivo,self.longitud_objetivo])
 
     def move_active(self):
         self.start_time = time.time()
         if self.active:
             self.ball_update()
-            self.root.after(0, self.move_active)  # changed from 10ms to 30ms
-
-
+            self.root.after(100, self.move_active)  # changed from 10ms to 30ms
 
 
     def count(self):
@@ -273,6 +268,7 @@ class ProcesamientoDeDatos():
         self.Simulador.configure(width=97)
         self.Simulador.configure(command=self.modoSimulador)
 
+
         self.Real = tk.Button(self.root)
         self.Real.place(relx=0.918, rely=0.845, height=54, width=93)
         self.Real.configure(activebackground="#ececec")
@@ -347,7 +343,7 @@ class ProcesamientoDeDatos():
         self.TLabel1.configure(text='''VITRO RIR-778C''')
         self.TLabel1.configure(width=346)
 
-
+        self.activar_parser = 1
 
 
         self.background = self.canvas.copy_from_bbox(self.fig.bbox)
@@ -360,10 +356,12 @@ class ProcesamientoDeDatos():
         print("arranca el modo real")
 
         if self.fin == 2:
+            print("modo real lo pongo en 0")
             self.fin = 0
             self.ser = serial.Serial('COM31', baudrate=115200)
             self.open_com = 1
             self.prueba.graficarOn(1)
+            self.grabar_trayectoria = 1
             self.Real.configure(bg="green")
             self.Real.configure(text='''Real Activado''')
             self.Real.configure(activebackground="GREEN")  # tengo que cambiar todos los active backgroun
@@ -373,6 +371,7 @@ class ProcesamientoDeDatos():
             self.fin = 1
         elif self.fin == 0:
             self.fin = 2
+            self.grabar_trayectoria = 0
             self.Real.configure(activebackground="#ececec")
             self.Real.configure(activeforeground="#000000")
             self.Real.configure(background="#d9d9d9")
@@ -386,19 +385,20 @@ class ProcesamientoDeDatos():
 
 
     def modoSimulador(self):
-
-        print("arranca el modo simulador")
-
         if self.fin == 2:
+            print("arranca el modo simulador")
             self.fin = 1
             self.prueba.graficarOn(self.graficar_ON)
+            self.grabar_trayectoria = 1
             self.Simulador.configure(bg="green")
             self.Simulador.configure(text='''Sim Activado''')
             self.Simulador.configure(activebackground="GREEN")  # tengo que cambiar todos los active backgroun
             self.Simulador.configure(highlightbackground="green")
             self.Simulador.configure(background="green")
         elif self.fin == 1:
+            print("termina el modo simulador")
             self.fin = 2
+            self.grabar_trayectoria = 0
             self.Simulador.configure(activebackground="#ececec")
             self.Simulador.configure(activeforeground="#000000")
             self.Simulador.configure(background="#d9d9d9")
@@ -414,23 +414,23 @@ class ProcesamientoDeDatos():
 
 
     def grabarTrayectoria(self):
-        print("grabar trayectoria")
 
         if self.grabar_trayectoria == 0:
+            print("grabar trayectoria == 0")
             self.grabar_trayectoria = 1
             self.labelLOG = str(time.localtime()[0]) + "-" + str(time.localtime()[1]) + "-" + str(
                 time.localtime()[2]) + "-" + str(time.localtime()[3]) + "-" + str(time.localtime()[4]) + "-" + str(
                 time.localtime()[5])
-            self.archivo_loggin = open(self.labelLOG + '.log', 'w')
+            self.archivo_loggin = open(self.labelLOG + '.log', 'w',newline='\n')
             self.prueba.refreshTrayectoria()
             self.GrabarTrayectoria.configure(bg="green")
             self.GrabarTrayectoria.configure(text='''Grabando''')
-
             self.GrabarTrayectoria.configure(activebackground="GREEN")  # tengo que cambiar todos los active backgroun
             self.GrabarTrayectoria.configure(highlightbackground="green")
             self.GrabarTrayectoria.configure(background="green")
 
         else:
+            print("grabar trayectoria == 1")
             self.grabar_trayectoria = 0
             self.archivo_loggin.close()
             self.GrabarTrayectoria.configure(activebackground="#ececec")
@@ -460,11 +460,13 @@ class ProcesamientoDeDatos():
         while True:
             if self.fin == 0:
                 self.data_serial = str(self.fifo_queue.get(block=True, timeout=None)).split(';')
+
                 # ["b'", 'D59D3','0','0','3FF98', '0', '0','2385', "\\r\\n'"]
                 # ;29A02;0;0;3E585;0;0;25AD;
                 if len(self.data_serial) > 5:
 
                     try:
+
                         self.az_sim = float(int(self.data_serial[1], 16) * 360) / 1048576
                         self.el_sim = float(int(self.data_serial[4], 16) * 360) / 1048576
 
@@ -474,9 +476,19 @@ class ProcesamientoDeDatos():
 
                     try:
                         self.rango_sim = int(self.data_serial[7], 16) / 2
-                        # print(self.rango)
+                        #print(self.rango_sim)
                     except:
                         print("errorpyth")
+                self.value_rango.set("{0:.2f}".format(self.rango_sim))
+                self.value_az.set("{0:.2f}".format(self.az_sim))
+                self.value_el.set("{0:.2f}".format(self.el_sim))
+                self.value_altitud.set("{0:.2f}".format(self.altitud_sim))  # Aca tiene que ir el calculo de altitud
+                if self.grabar_trayectoria == 1:
+
+                    self.loggin_queue.put(
+                        [float("{0:.2f}".format(self.az_sim).replace("'", '')), float("{0:.2f}".format(self.el_sim)),
+                         float("{0:.2f}".format(self.rango_sim)), "{0:.2f}".format(self.altitud_sim),
+                         self.latitud_objetivo, self.longitud_objetivo])
 
             elif self.fin == 1:
 
@@ -500,7 +512,16 @@ class ProcesamientoDeDatos():
                         except:
                             print("Error_rango_sim")
 
-                time.sleep(0.02)
+                self.value_rango.set("{0:.2f}".format(self.rango_sim))
+                self.value_az.set("{0:.2f}".format(self.az_sim))
+                self.value_el.set("{0:.2f}".format(self.el_sim))
+                self.value_altitud.set("{0:.2f}".format(self.altitud_sim))  # Aca tiene que ir el calculo de altitud
+                if self.grabar_trayectoria == 1:
+                    self.loggin_queue.put([float("{0:.2f}".format(self.az_sim).replace("'", '')), float("{0:.2f}".format(self.el_sim)),float("{0:.2f}".format(self.rango_sim)), "{0:.2f}".format(self.altitud_sim), self.latitud_objetivo, self.longitud_objetivo])
+                #time.sleep(0.02)
+
+
+
 
     def leerSerial(self):
         while True:
@@ -508,7 +529,7 @@ class ProcesamientoDeDatos():
 
                 self.pParam2 = self.ser.readline()
                 self.fifo_queue.put(self.pParam2)
-                time.sleep(0.02)
+
             elif self.fin == 1:
                 #hacer la lectura del csv t mandarlo por pParam2
                 with open('C:\\Users\\pablo\\Desktop\\logsOperacionVitro\\100ms\\2018-11-15-111822.log','r') as csvFile:
@@ -517,10 +538,7 @@ class ProcesamientoDeDatos():
                         self.fifo_queue.put(row)
                         time.sleep(0.02)
                     print("esta aca en fin1")
-
             else:
-                #No hacer Nada
-                #print("esta aca?")
                 time.sleep(0.2)
 
 class AnimatedLayer(BaseLayer):
@@ -566,6 +584,7 @@ class AnimatedLayer(BaseLayer):
 
             self.painter.batch_draw()
             self.frame_counter += 1
+            time.sleep(0.03)
 
     def bbox(self):
         return BoundingBox(north=-29, west=-65, south=-32, east=-64)
