@@ -67,12 +67,14 @@ class ProcesamientoDeDatos():
         self.altitud = 0
         self.objetivo_az_rango = [0.0, 0]  # [azimuth,rango]
         self.objetivo_el_rango = [0.0, 0]  # [elevacion,rango]
+        self.cola_objetivo_az_rango = []
+        self.cola_objetivo_el_rango = []
         self.rango_contador = 0
         self.graficar_ON = 1
         self.graficar_OFF = 0
         self.activar_parser = 0
         # FIFO donde se guardan los datos leidos desde el Serial.
-        self.fifo_queue = queue.Queue(100)
+        self.fifo_queue = queue.Queue(1000)
         self.loggin_queue = queue.Queue(10)
 
 
@@ -87,7 +89,7 @@ class ProcesamientoDeDatos():
         self.hiloLoggin.start()
 
         while self.activar_parser != 1:
-            print("esperando que se active el parser")
+            self.contador_de_la_nada_nisman = 0
 
         self.hiloParser.start()
         self.prueba = AnimatedLayer()
@@ -107,24 +109,23 @@ class ProcesamientoDeDatos():
 
     def ball_update(self):
 
+        self.cola_objetivo_az_rango.append([(self.az_sim * np.pi) / 180, self.rango_sim])
+        self.cola_objetivo_el_rango.append([(self.el_sim * np.pi) / 180, self.rango_sim])
 
-        self.counter = self.counter + 100
-        self.altitud_sim = np.sin((self.el_sim * np.pi) / 180) * self.rango_sim
-        self.objetivo_az_rango[0] = (self.az_sim*np.pi)/180#0.785398163#self.azimuth
-        self.objetivo_az_rango[1] = self.rango_sim#self.counter % 100000  # self.rango
-        self.objetivo_el_rango[0] = (self.el_sim*np.pi)/180#1.047197551#self.elevacion
-        self.objetivo_el_rango[1] = self.rango_sim#self.counter % 100000  # self.rango
+        self.scatter_point_red_az.set_offsets([(self.az_sim * np.pi) / 180, self.rango_sim])
+        self.scatter_point_red_el.set_offsets([(self.el_sim * np.pi) / 180, self.rango_sim])
 
-        self.scatter_objeto_az.set_offsets(self.objetivo_az_rango)
-        self.scatter_objeto_el.set_offsets(self.objetivo_el_rango)
+        self.scatter_objeto_az.set_offsets(self.cola_objetivo_az_rango)
+        self.scatter_objeto_el.set_offsets(self.cola_objetivo_el_rango)
 
         self.az.draw_artist(self.scatter_objeto_az)
         self.el.draw_artist(self.scatter_objeto_el)
 
+        self.az.draw_artist(self.scatter_point_red_az)
+        self.el.draw_artist(self.scatter_point_red_el)
+
         self.fig.canvas.blit(self.fig.bbox)
         self.fig.canvas.restore_region(self.background)
-
-        #print("--- %s seconds ---" % (time.time() - self.start_time)
 
         if self.fin != 2:
             self.latitud_objetivo,self.longitud_objetivo = self.prueba.azelraToLatLong(self.az_sim,self.el_sim,self.rango_sim)
@@ -154,6 +155,7 @@ class ProcesamientoDeDatos():
         self.value_el = tk.StringVar()
         self.value_rango = tk.StringVar()
         self.value_altitud = tk.StringVar()
+        self.value_altitud_pies = tk.StringVar()
         '''This class configures and populates the toplevel window.
                      top is the toplevel containing window.'''
         _bgcolor = '#d9d9d9'  # X11 color: 'gray85'
@@ -195,6 +197,7 @@ class ProcesamientoDeDatos():
         self.az.set_theta_direction(-1)
         self.az.grid(color='#424242', linestyle='-', linewidth='1')  # Color de la grilla
         self.scatter_objeto_az = self.az.scatter([], [], c='black', s=100, cmap='hsv', alpha=0.75)
+        self.scatter_point_red_az = self.az.scatter([], [], c='red', s=100, cmap='hsv', alpha=0.75)
 
         self.el = self.fig.add_subplot(self.gs[:, 1], projection='polar')  # gs[fila, columna]
         self.el.set_thetamin(0)
@@ -202,6 +205,7 @@ class ProcesamientoDeDatos():
         self.el.set_ylim([0, 150000])
         self.el.grid(color='#424242', linestyle='-', linewidth='1')  # Color de la grilla
         self.scatter_objeto_el = self.el.scatter([], [], c='black', s=100, cmap='hsv', alpha=0.75)
+        self.scatter_point_red_el = self.el.scatter([], [], c='red', s=100, cmap='hsv', alpha=0.75)
 
         self.Canvas1 = tk.Canvas(self.root)
         self.Canvas1.place(relx=0.0, rely=0.0, relheight=0.827, relwidth=1.003)
@@ -268,6 +272,20 @@ class ProcesamientoDeDatos():
         self.Simulador.configure(width=97)
         self.Simulador.configure(command=self.modoSimulador)
 
+        self.Borrar_trayectoria = tk.Button(self.root)
+        self.Borrar_trayectoria.place(relx=0.818, rely=0.928, height=54, width=97)
+        self.Borrar_trayectoria.configure(activebackground="#ececec")
+        self.Borrar_trayectoria.configure(activeforeground="#000000")
+        self.Borrar_trayectoria.configure(background="#d9d9d9")
+        self.Borrar_trayectoria.configure(disabledforeground="#a3a3a3")
+        self.Borrar_trayectoria.configure(foreground="#000000")
+        self.Borrar_trayectoria.configure(highlightbackground="#d9d9d9")
+        self.Borrar_trayectoria.configure(highlightcolor="black")
+        self.Borrar_trayectoria.configure(pady="0")
+        self.Borrar_trayectoria.configure(text='''Borrar Tray''')
+        self.Borrar_trayectoria.configure(width=97)
+        self.Borrar_trayectoria.configure(command=self.borrarTrayectoria)
+
 
         self.Real = tk.Button(self.root)
         self.Real.place(relx=0.918, rely=0.845, height=54, width=93)
@@ -285,20 +303,21 @@ class ProcesamientoDeDatos():
 
         self.GrabarTrayectoria = tk.Button(self.root)
         self.GrabarTrayectoria.place(relx=0.819, rely=0.845, height=54, width=93)
-        self.GrabarTrayectoria.configure(activebackground="#ececec")
+        self.GrabarTrayectoria.configure(activebackground="GREEN")
         self.GrabarTrayectoria.configure(activeforeground="#000000")
-        self.GrabarTrayectoria.configure(background="#d9d9d9")
+        self.GrabarTrayectoria.configure(background="green")
         self.GrabarTrayectoria.configure(disabledforeground="#a3a3a3")
         self.GrabarTrayectoria.configure(foreground="#000000")
-        self.GrabarTrayectoria.configure(highlightbackground="#d9d9d9")
+        self.GrabarTrayectoria.configure(highlightbackground="green")
         self.GrabarTrayectoria.configure(highlightcolor="black")
         self.GrabarTrayectoria.configure(pady="0")
-        self.GrabarTrayectoria.configure(text='''Grabar Tray''')
+        self.GrabarTrayectoria.configure(text='''Grabando''')
         self.GrabarTrayectoria.configure(width=93)
         self.GrabarTrayectoria.configure(command=self.grabarTrayectoria)
 
+
         self.Label5 = tk.Label(self.root, textvariable=self.value_az)
-        self.Label5.place(relx=0.195, rely=0.918, height=51, width=114)
+        self.Label5.place(relx=0.195, rely=0.928, height=51, width=114)
         self.Label5.configure(background="#d9d9d9")
         self.Label5.configure(disabledforeground="#a3a3a3")
         self.Label5.configure(font=font9)
@@ -307,7 +326,7 @@ class ProcesamientoDeDatos():
         self.Label5.configure(width=114)
 
         self.Label6 = tk.Label(self.root,textvariable=self.value_el)
-        self.Label6.place(relx=0.355, rely=0.918, height=53, width=131)
+        self.Label6.place(relx=0.355, rely=0.928, height=53, width=131)
         self.Label6.configure(background="#d9d9d9")
         self.Label6.configure(disabledforeground="#a3a3a3")
         self.Label6.configure(font=font9)
@@ -316,7 +335,7 @@ class ProcesamientoDeDatos():
         self.Label6.configure(width=131)
 
         self.Label7 = tk.Label(self.root, textvariable=self.value_rango)
-        self.Label7.place(relx=0.498, rely=0.918, height=53, width=166)
+        self.Label7.place(relx=0.498, rely=0.928, height=53, width=166)
         self.Label7.configure(background="#d9d9d9")
         self.Label7.configure(disabledforeground="#a3a3a3")
         self.Label7.configure(font=font9)
@@ -325,7 +344,7 @@ class ProcesamientoDeDatos():
         self.Label7.configure(width=166)
 
         self.Label8 = tk.Label(self.root, textvariable=self.value_altitud)
-        self.Label8.place(relx=0.681, rely=0.928, height=53, width=128)
+        self.Label8.place(relx=0.681, rely=0.928, height=53, width=180)
         self.Label8.configure(activebackground="#f0f0f0")
         self.Label8.configure(background="#d9d9d9")
         self.Label8.configure(disabledforeground="#a3a3a3")
@@ -333,6 +352,17 @@ class ProcesamientoDeDatos():
         self.Label8.configure(foreground="#000000")
         self.Label8.configure(text='''V_ALT''')
         self.Label8.configure(width=128)
+
+        self.Altitud_pies = tk.Label(self.root, textvariable=self.value_altitud_pies)
+        self.Altitud_pies.place(relx=0.681, rely=0.890, height=53, width=180)
+        self.Altitud_pies.configure(activebackground="#f0f0f0")
+        self.Altitud_pies.configure(background="#d9d9d9")
+        self.Altitud_pies.configure(disabledforeground="#a3a3a3")
+        self.Altitud_pies.configure(font=font9)
+        self.Altitud_pies.configure(foreground="#000000")
+        self.Altitud_pies.configure(text='''V_ALT''')
+        self.Altitud_pies.configure(width=128)
+
 
         self.TLabel1 = ttk.Label(self.root)
         self.TLabel1.place(relx=-0.006, rely=0.834, height=149, width=346)
@@ -351,6 +381,11 @@ class ProcesamientoDeDatos():
         self.move_active()
         self.ball_update()
         tk.mainloop()
+
+    def borrarTrayectoria(self):
+        self.prueba.refreshTrayectoria()
+        self.cola_objetivo_el_rango = []
+        self.cola_objetivo_az_rango = []
 
     def modoReal(self):
         print("arranca el modo real")
@@ -479,15 +514,19 @@ class ProcesamientoDeDatos():
                         #print(self.rango_sim)
                     except:
                         print("errorpyth")
-                self.value_rango.set("{0:.2f}".format(self.rango_sim))
-                self.value_az.set("{0:.2f}".format(self.az_sim))
-                self.value_el.set("{0:.2f}".format(self.el_sim))
-                self.value_altitud.set("{0:.2f}".format(self.altitud_sim))  # Aca tiene que ir el calculo de altitud
+
+                self.altitud_sim = np.sin((self.el_sim * np.pi) / 180) * self.rango_sim
+
+                self.value_rango.set("{0:.2f}".format(self.rango_sim)+ " m")
+                self.value_az.set("{0:.2f}".format(self.az_sim)+ " °")
+                self.value_el.set("{0:.2f}".format(self.el_sim)+ " °")
+                self.value_altitud.set("{0:.2f}".format(self.altitud_sim)+" m")  # Aca tiene que ir el calculo de altitud
+                self.value_altitud_pies.set("{0:.2f}".format(self.altitud_sim_pies*3.28084)+" ft")
                 if self.grabar_trayectoria == 1:
 
                     self.loggin_queue.put(
                         [float("{0:.2f}".format(self.az_sim).replace("'", '')), float("{0:.2f}".format(self.el_sim)),
-                         float("{0:.2f}".format(self.rango_sim)), "{0:.2f}".format(self.altitud_sim),
+                         float("{0:.2f}".format(self.rango_sim)), "{0:.2f}".format(self.altitud_sim).replace("'", ''),
                          self.latitud_objetivo, self.longitud_objetivo])
 
             elif self.fin == 1:
@@ -512,13 +551,17 @@ class ProcesamientoDeDatos():
                         except:
                             print("Error_rango_sim")
 
-                self.value_rango.set("{0:.2f}".format(self.rango_sim))
-                self.value_az.set("{0:.2f}".format(self.az_sim))
-                self.value_el.set("{0:.2f}".format(self.el_sim))
-                self.value_altitud.set("{0:.2f}".format(self.altitud_sim))  # Aca tiene que ir el calculo de altitud
+
+                self.altitud_sim = np.sin((self.el_sim * np.pi) / 180) * self.rango_sim
+
+                self.value_rango.set("{0:.2f}".format(self.rango_sim)+ " m")
+                self.value_az.set("{0:.2f}".format(self.az_sim)+" °")
+                self.value_el.set("{0:.2f}".format(self.el_sim)+" °")
+                self.value_altitud.set("{0:.2f}".format(self.altitud_sim)+" m")  # Aca tiene que ir el calculo de altitud
+                self.value_altitud_pies.set("{0:.2f}".format(self.altitud_sim*3.28084) + " ft")
                 if self.grabar_trayectoria == 1:
                     self.loggin_queue.put([float("{0:.2f}".format(self.az_sim).replace("'", '')), float("{0:.2f}".format(self.el_sim)),float("{0:.2f}".format(self.rango_sim)), "{0:.2f}".format(self.altitud_sim), self.latitud_objetivo, self.longitud_objetivo])
-                #time.sleep(0.02)
+
 
 
 
@@ -552,6 +595,8 @@ class AnimatedLayer(BaseLayer):
         self.longitud_target = -31.434847  # +long_vitro
         self.latitudes = []
         self.longitudes = []
+        self.latitud_instantanea = []
+        self.longitud_instantanea = []
         self.graficar = 0
 
 
@@ -575,19 +620,31 @@ class AnimatedLayer(BaseLayer):
             self.latitudes.append(self.latitud_target)
             self.longitudes.append(self.longitud_target)
 
+
             self.x, self.y = proj.lonlat_to_screen([self.longitudes], [self.latitudes])
+            self.x_instantaneo, self.y_instantaneo = proj.lonlat_to_screen([self.longitud_target],
+                                                                           [self.latitud_target])
             self.painter = BatchPainter()
+            self.painter.set_color("blue")
             self.painter.points(self.vitro_x,
                                 self.vitro_y)
-            self.painter.points(self.x,#[self.frame_counter],
-                                self.y, point_size=4, rounded=True)#[self.frame_counter],point_size=4, rounded=True)
+
+            self.painter.points(self.x,
+                                self.y, point_size=4, rounded=True)
+
+            self.painter.set_color("red")
+
+
+            self.painter.points(self.x_instantaneo, self.y_instantaneo,point_size=5, rounded=True)
+
+
 
             self.painter.batch_draw()
             self.frame_counter += 1
             time.sleep(0.03)
 
     def bbox(self):
-        return BoundingBox(north=-29, west=-65, south=-32, east=-64)
+        return BoundingBox(north=-31.3, west=-64.5, south=-32, east=-64)
 
 
     def azelraToLatLong(self,_azimuth, _elevacion, _rango):
