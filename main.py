@@ -155,6 +155,7 @@ class ProcesamientoDeDatos():
         self.value_el = tk.StringVar()
         self.value_rango = tk.StringVar()
         self.value_altitud = tk.StringVar()
+        self.value_altitud_pies = tk.StringVar()
         '''This class configures and populates the toplevel window.
                      top is the toplevel containing window.'''
         _bgcolor = '#d9d9d9'  # X11 color: 'gray85'
@@ -316,7 +317,7 @@ class ProcesamientoDeDatos():
 
 
         self.Label5 = tk.Label(self.root, textvariable=self.value_az)
-        self.Label5.place(relx=0.195, rely=0.918, height=51, width=114)
+        self.Label5.place(relx=0.195, rely=0.928, height=51, width=114)
         self.Label5.configure(background="#d9d9d9")
         self.Label5.configure(disabledforeground="#a3a3a3")
         self.Label5.configure(font=font9)
@@ -325,7 +326,7 @@ class ProcesamientoDeDatos():
         self.Label5.configure(width=114)
 
         self.Label6 = tk.Label(self.root,textvariable=self.value_el)
-        self.Label6.place(relx=0.355, rely=0.918, height=53, width=131)
+        self.Label6.place(relx=0.355, rely=0.928, height=53, width=131)
         self.Label6.configure(background="#d9d9d9")
         self.Label6.configure(disabledforeground="#a3a3a3")
         self.Label6.configure(font=font9)
@@ -334,7 +335,7 @@ class ProcesamientoDeDatos():
         self.Label6.configure(width=131)
 
         self.Label7 = tk.Label(self.root, textvariable=self.value_rango)
-        self.Label7.place(relx=0.498, rely=0.918, height=53, width=166)
+        self.Label7.place(relx=0.498, rely=0.928, height=53, width=166)
         self.Label7.configure(background="#d9d9d9")
         self.Label7.configure(disabledforeground="#a3a3a3")
         self.Label7.configure(font=font9)
@@ -343,7 +344,7 @@ class ProcesamientoDeDatos():
         self.Label7.configure(width=166)
 
         self.Label8 = tk.Label(self.root, textvariable=self.value_altitud)
-        self.Label8.place(relx=0.681, rely=0.928, height=53, width=128)
+        self.Label8.place(relx=0.681, rely=0.928, height=53, width=180)
         self.Label8.configure(activebackground="#f0f0f0")
         self.Label8.configure(background="#d9d9d9")
         self.Label8.configure(disabledforeground="#a3a3a3")
@@ -351,6 +352,17 @@ class ProcesamientoDeDatos():
         self.Label8.configure(foreground="#000000")
         self.Label8.configure(text='''V_ALT''')
         self.Label8.configure(width=128)
+
+        self.Altitud_pies = tk.Label(self.root, textvariable=self.value_altitud_pies)
+        self.Altitud_pies.place(relx=0.681, rely=0.890, height=53, width=180)
+        self.Altitud_pies.configure(activebackground="#f0f0f0")
+        self.Altitud_pies.configure(background="#d9d9d9")
+        self.Altitud_pies.configure(disabledforeground="#a3a3a3")
+        self.Altitud_pies.configure(font=font9)
+        self.Altitud_pies.configure(foreground="#000000")
+        self.Altitud_pies.configure(text='''V_ALT''')
+        self.Altitud_pies.configure(width=128)
+
 
         self.TLabel1 = ttk.Label(self.root)
         self.TLabel1.place(relx=-0.006, rely=0.834, height=149, width=346)
@@ -505,10 +517,11 @@ class ProcesamientoDeDatos():
 
                 self.altitud_sim = np.sin((self.el_sim * np.pi) / 180) * self.rango_sim
 
-                self.value_rango.set("{0:.2f}".format(self.rango_sim))
-                self.value_az.set("{0:.2f}".format(self.az_sim))
-                self.value_el.set("{0:.2f}".format(self.el_sim))
-                self.value_altitud.set("{0:.2f}".format(self.altitud_sim))  # Aca tiene que ir el calculo de altitud
+                self.value_rango.set("{0:.2f}".format(self.rango_sim)+ " m")
+                self.value_az.set("{0:.2f}".format(self.az_sim)+ " °")
+                self.value_el.set("{0:.2f}".format(self.el_sim)+ " °")
+                self.value_altitud.set("{0:.2f}".format(self.altitud_sim)+" m")  # Aca tiene que ir el calculo de altitud
+                self.value_altitud_pies.set("{0:.2f}".format(self.altitud_sim_pies*3.28084)+" ft")
                 if self.grabar_trayectoria == 1:
 
                     self.loggin_queue.put(
@@ -541,10 +554,11 @@ class ProcesamientoDeDatos():
 
                 self.altitud_sim = np.sin((self.el_sim * np.pi) / 180) * self.rango_sim
 
-                self.value_rango.set("{0:.2f}".format(self.rango_sim))
-                self.value_az.set("{0:.2f}".format(self.az_sim))
-                self.value_el.set("{0:.2f}".format(self.el_sim))
-                self.value_altitud.set("{0:.2f}".format(self.altitud_sim))  # Aca tiene que ir el calculo de altitud
+                self.value_rango.set("{0:.2f}".format(self.rango_sim)+ " m")
+                self.value_az.set("{0:.2f}".format(self.az_sim)+" °")
+                self.value_el.set("{0:.2f}".format(self.el_sim)+" °")
+                self.value_altitud.set("{0:.2f}".format(self.altitud_sim)+" m")  # Aca tiene que ir el calculo de altitud
+                self.value_altitud_pies.set("{0:.2f}".format(self.altitud_sim*3.28084) + " ft")
                 if self.grabar_trayectoria == 1:
                     self.loggin_queue.put([float("{0:.2f}".format(self.az_sim).replace("'", '')), float("{0:.2f}".format(self.el_sim)),float("{0:.2f}".format(self.rango_sim)), "{0:.2f}".format(self.altitud_sim), self.latitud_objetivo, self.longitud_objetivo])
 
