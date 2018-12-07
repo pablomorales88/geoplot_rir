@@ -165,7 +165,7 @@ class ProcesamientoDeDatos():
                  "roman -underline 0 -overstrike 0"
         font11 = "-family {Segoe UI} -size 15 -weight normal -slant " \
                  "roman -underline 0 -overstrike 0"
-        font12 = "-family {Tw Cen MT Condensed} -size 40 -weight bold " \
+        font12 = "-family {Tw Cen MT Condensed} -size 30 -weight bold " \
                  "-slant italic -underline 0 -overstrike 0"
         font9 = "-family {Segoe UI} -size 20 -weight normal -slant " \
                 "roman -underline 0 -overstrike 0"
@@ -191,7 +191,7 @@ class ProcesamientoDeDatos():
         self.az = self.fig.add_subplot(self.gs[:, 0], projection='polar', zorder=1)
 
         self.az.set_theta_zero_location("N")
-        self.az.set_ylim([0, 100000])
+        self.az.set_ylim([0, 150000])
         self.az.set_theta_direction(-1)
         self.az.grid(color='#424242', linestyle='-', linewidth='1')  # Color de la grilla
         self.scatter_objeto_az = self.az.scatter([], [], c='black', s=100, cmap='hsv', alpha=0.75)
@@ -199,7 +199,7 @@ class ProcesamientoDeDatos():
         self.el = self.fig.add_subplot(self.gs[:, 1], projection='polar')  # gs[fila, columna]
         self.el.set_thetamin(0)
         self.el.set_thetamax(90)
-        self.el.set_ylim([0, 100000])
+        self.el.set_ylim([0, 150000])
         self.el.grid(color='#424242', linestyle='-', linewidth='1')  # Color de la grilla
         self.scatter_objeto_el = self.el.scatter([], [], c='black', s=100, cmap='hsv', alpha=0.75)
 
@@ -358,7 +358,7 @@ class ProcesamientoDeDatos():
         if self.fin == 2:
             print("modo real lo pongo en 0")
             self.fin = 0
-            self.ser = serial.Serial('COM31', baudrate=115200)
+            self.ser = serial.Serial('COM8', baudrate=115200)
             self.open_com = 1
             self.prueba.graficarOn(1)
             self.grabar_trayectoria = 1
@@ -532,7 +532,7 @@ class ProcesamientoDeDatos():
 
             elif self.fin == 1:
                 #hacer la lectura del csv t mandarlo por pParam2
-                with open('C:\\Users\\pablo\\Desktop\\logsOperacionVitro\\100ms\\2018-11-15-111822.log','r') as csvFile:
+                with open('2018-11-15-111822.log','r') as csvFile:
                     self.reader = csv.reader(csvFile, delimiter=';')
                     for row in self.reader:
                         self.fifo_queue.put(row)
