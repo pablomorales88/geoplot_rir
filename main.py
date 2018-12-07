@@ -521,7 +521,7 @@ class ProcesamientoDeDatos():
                 self.value_az.set("{0:.2f}".format(self.az_sim)+ " °")
                 self.value_el.set("{0:.2f}".format(self.el_sim)+ " °")
                 self.value_altitud.set("{0:.2f}".format(self.altitud_sim)+" m")  # Aca tiene que ir el calculo de altitud
-                self.value_altitud_pies.set("{0:.2f}".format(self.altitud_sim_pies*3.28084)+" ft")
+                self.value_altitud_pies.set("{0:.2f}".format(self.altitud_sim*3.28084)+" ft")
                 if self.grabar_trayectoria == 1:
 
                     self.loggin_queue.put(
